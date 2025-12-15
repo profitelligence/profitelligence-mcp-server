@@ -25,7 +25,7 @@ We provide **semantically dense, LLM-optimized responses** designed for AI agent
 
 | Traditional MCP Servers | Profitelligence MCP |
 |------------------------|---------------------|
-| Many narrow tools (10-20+) | **5 powerful tools** with rich filtering |
+| Many narrow tools (10-20+) | **7 powerful tools** with rich filtering |
 | Raw data dumps | **Pre-contextualized intelligence** |
 | Multiple calls to answer one question | **One call, complete answer** |
 | Token-heavy responses | **Optimized for token efficiency** |
