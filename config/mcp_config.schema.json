@@ -1,0 +1,187 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Profitelligence MCP Server Configuration",
+  "description": "Configuration schema for the Profitelligence Model Context Protocol server",
+  "type": "object",
+  "properties": {
+    "api": {
+      "type": "object",
+      "description": "API connection configuration",
+      "properties": {
+        "base_url": {
+          "type": "string",
+          "description": "Base URL for Profitelligence API",
+          "default": "https://apollo.profitelligence.com",
+          "examples": [
+            "https://apollo.profitelligence.com",
+            "https://icarus.profitelligence.com"
+          ]
+        },
+        "timeout": {
+          "type": "integer",
+          "description": "Request timeout in seconds",
+          "default": 30,
+          "minimum": 5,
+          "maximum": 300
+        },
+        "retry_attempts": {
+          "type": "integer",
+          "description": "Number of retry attempts for failed requests",
+          "default": 3,
+          "minimum": 0,
+          "maximum": 10
+        }
+      },
+      "required": ["base_url"]
+    },
+    "auth": {
+      "type": "object",
+      "description": "Authentication configuration",
+      "properties": {
+        "method": {
+          "type": "string",
+          "description": "Authentication method",
+          "enum": ["api_key", "oauth"],
+          "default": "api_key"
+        },
+        "api_key": {
+          "type": "string",
+          "description": "API key for authentication (when method=api_key)",
+          "pattern": "^pk_[a-zA-Z0-9]{32,}$"
+        },
+        "oauth": {
+          "type": "object",
+          "description": "OAuth configuration (when method=oauth)",
+          "properties": {
+            "client_id": {
+              "type": "string",
+              "description": "OAuth client ID"
+            },
+            "refresh_token": {
+              "type": "string",
+              "description": "OAuth refresh token (auto-managed)"
+            },
+            "token_expiry": {
+              "type": "string",
+              "description": "Access token expiry timestamp (auto-managed)",
+              "format": "date-time"
+            }
+          }
+        }
+      },
+      "required": ["method"],
+      "oneOf": [
+        {
+          "properties": {
+            "method": {"const": "api_key"}
+          },
+          "required": ["api_key"]
+        },
+        {
+          "properties": {
+            "method": {"const": "oauth"}
+          },
+          "required": ["oauth"]
+        }
+      ]
+    },
+    "server": {
+      "type": "object",
+      "description": "MCP server configuration",
+      "properties": {
+        "mode": {
+          "type": "string",
+          "description": "Server transport mode",
+          "enum": ["stdio", "http"],
+          "default": "stdio"
+        },
+        "port": {
+          "type": "integer",
+          "description": "Port for HTTP mode",
+          "default": 3000,
+          "minimum": 1024,
+          "maximum": 65535
+        },
+        "host": {
+          "type": "string",
+          "description": "Host for HTTP mode",
+          "default": "0.0.0.0"
+        },
+        "log_level": {
+          "type": "string",
+          "description": "Logging level",
+          "enum": ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
+          "default": "INFO"
+        }
+      }
+    },
+    "tools": {
+      "type": "object",
+      "description": "Tool-specific configuration",
+      "properties": {
+        "enabled_categories": {
+          "type": "array",
+          "description": "Enable specific tool categories",
+          "items": {
+            "type": "string",
+            "enum": [
+              "market_data",
+              "analytics",
+              "user_management",
+              "subscriptions",
+              "affiliates"
+            ]
+          },
+          "default": ["market_data", "user_management"]
+        },
+        "default_limits": {
+          "type": "object",
+          "description": "Default limits for tool parameters",
+          "properties": {
+            "max_symbols": {
+              "type": "integer",
+              "description": "Maximum symbols per query",
+              "default": 10,
+              "minimum": 1,
+              "maximum": 100
+            },
+            "max_days_lookback": {
+              "type": "integer",
+              "description": "Maximum days to look back for historical data",
+              "default": 365,
+              "minimum": 1,
+              "maximum": 3650
+            },
+            "default_page_size": {
+              "type": "integer",
+              "description": "Default pagination size",
+              "default": 50,
+              "minimum": 10,
+              "maximum": 500
+            }
+          }
+        },
+        "cache": {
+          "type": "object",
+          "description": "Response caching configuration",
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "description": "Enable response caching",
+              "default": true
+            },
+            "ttl_seconds": {
+              "type": "integer",
+              "description": "Cache TTL in seconds",
+              "default": 300,
+              "minimum": 0,
+              "maximum": 3600
+            }
+          }
+        }
+      }
+    }
+  },
+  "required": ["api", "auth"],
+  "additionalProperties": false
+}

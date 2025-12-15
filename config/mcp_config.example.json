@@ -1,0 +1,34 @@
+{
+  "$schema": "./mcp_config.schema.json",
+  "api": {
+    "base_url": "https://apollo.profitelligence.com",
+    "timeout": 30,
+    "retry_attempts": 3
+  },
+  "auth": {
+    "method": "api_key",
+    "api_key": "pk_your_api_key_here_replace_with_real_key"
+  },
+  "server": {
+    "mode": "stdio",
+    "port": 3000,
+    "host": "0.0.0.0",
+    "log_level": "INFO"
+  },
+  "tools": {
+    "enabled_categories": [
+      "market_data",
+      "analytics",
+      "user_management"
+    ],
+    "default_limits": {
+      "max_symbols": 10,
+      "max_days_lookback": 365,
+      "default_page_size": 50
+    },
+    "cache": {
+      "enabled": true,
+      "ttl_seconds": 300
+    }
+  }
+}
