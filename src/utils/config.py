@@ -5,8 +5,8 @@ Loads settings from environment variables with validation.
 """
 import os
 from typing import Optional
-from pydantic_settings import BaseSettings
-from pydantic import Field, validator, model_validator
+from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import Field, field_validator, model_validator, ValidationInfo
 
 
 class Config(BaseSettings):
@@ -193,24 +193,17 @@ class Config(BaseSettings):
 
         return self
 
-    @validator('auth_method')
+    @field_validator('auth_method')
+    @classmethod
     def validate_auth_method(cls, v: str) -> str:
         """Ensure auth method is valid."""
         if v not in ('api_key', 'oauth', 'both', 'firebase_jwt'):
             raise ValueError("auth_method must be 'api_key', 'oauth', 'both', or 'firebase_jwt'")
         return v
 
-    @validator('oauth_enabled')
-    def set_oauth_enabled(cls, v: bool, values) -> bool:
-        """Auto-enable OAuth based on auth_method."""
-        auth_method = values.get('auth_method', 'oauth')
-        # Enable OAuth for 'oauth' mode or 'both' mode
-        if auth_method in ('oauth', 'both'):
-            return True
-        return v
-
-    @validator('api_key')
-    def validate_api_key(cls, v: Optional[str], values) -> Optional[str]:
+    @field_validator('api_key')
+    @classmethod
+    def validate_api_key(cls, v: Optional[str]) -> Optional[str]:
         """Ensure API key has correct format if provided."""
         # API key is OPTIONAL in config for multitenancy
         # Users can provide API keys per-request via headers/query params
@@ -220,22 +213,8 @@ class Config(BaseSettings):
 
         return v
 
-    @validator('firebase_id_token')
-    def validate_firebase_token(cls, v: Optional[str], values) -> Optional[str]:
-        """Ensure Firebase token is provided when using legacy firebase_jwt auth."""
-        auth_method = values.get('auth_method', 'api_key')
-
-        # Only required for legacy 'firebase_jwt' mode (Phase 1 compatibility)
-        if auth_method == 'firebase_jwt':
-            if not v and not values.get('firebase_refresh_token'):
-                raise ValueError(
-                    "Either firebase_id_token or firebase_refresh_token is required "
-                    "when auth_method is 'firebase_jwt'"
-                )
-
-        return v
-
-    @validator('api_base_url')
+    @field_validator('api_base_url')
+    @classmethod
     def validate_base_url(cls, v: str) -> str:
         """Ensure base URL is valid."""
         if not v.startswith('http://') and not v.startswith('https://'):
@@ -244,16 +223,35 @@ class Config(BaseSettings):
         # Remove trailing slash
         return v.rstrip('/')
 
-    @validator('mcp_mode')
+    @field_validator('mcp_mode')
+    @classmethod
     def validate_mode(cls, v: str) -> str:
         """Ensure mode is valid."""
         if v not in ('stdio', 'http'):
             raise ValueError("Mode must be 'stdio' or 'http'")
         return v
 
-    class Config:
-        env_prefix = "PROF_"
-        case_sensitive = False
+    @model_validator(mode='after')
+    def set_oauth_enabled_and_validate_firebase(self):
+        """Auto-enable OAuth based on auth_method and validate Firebase token."""
+        # Enable OAuth for 'oauth' mode or 'both' mode
+        if self.auth_method in ('oauth', 'both'):
+            self.oauth_enabled = True
+
+        # Validate Firebase token for legacy firebase_jwt auth
+        if self.auth_method == 'firebase_jwt':
+            if not self.firebase_id_token and not self.firebase_refresh_token:
+                raise ValueError(
+                    "Either firebase_id_token or firebase_refresh_token is required "
+                    "when auth_method is 'firebase_jwt'"
+                )
+
+        return self
+
+    model_config = SettingsConfigDict(
+        env_prefix="PROF_",
+        case_sensitive=False,
+    )
 
 
 def load_config() -> Config:
