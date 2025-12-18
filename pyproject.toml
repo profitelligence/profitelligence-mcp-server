@@ -1,6 +1,6 @@
 [project]
 name = "profitelligence-mcp"
-version = "1.0.0"
+version = "1.0.1"
 description = "Model Context Protocol server for Profitelligence APIs"
 authors = [
     {name = "Profitelligence", email = "support@profitelligence.com"}
