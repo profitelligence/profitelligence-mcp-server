@@ -445,8 +445,9 @@ class TestToolsIntegration:
     These tests exercise the full path including _get_client and API client.
     """
 
-    def test_pulse_integration_with_http_mock(self, monkeypatch, base_url, pulse_response):
-        """Integration test - exercises full path through API client."""
+    @pytest.fixture(autouse=True)
+    def setup_integration_env(self, monkeypatch, base_url, mock_http_request):
+        """Set up integration test environment."""
         import src.utils.config as config_module
         config_module.config = None
 
@@ -454,67 +455,45 @@ class TestToolsIntegration:
         monkeypatch.setenv("PROF_API_KEY", "pk_test_integration")
         monkeypatch.setenv("PROF_API_BASE_URL", base_url)
 
-        # Mock at HTTP level
-        with respx.mock(base_url=base_url) as mock:
+        # Store for use in tests
+        self.base_url = base_url
+        self.mock_request = mock_http_request(headers={"x-api-key": "pk_test_integration"})
+
+    def test_pulse_integration_with_http_mock(self, pulse_response):
+        """Integration test - exercises full path through API client."""
+        with respx.mock(base_url=self.base_url) as mock:
             mock.get("/v1/mcp-pulse").mock(
                 return_value=httpx.Response(200, json=pulse_response)
             )
 
-            # Mock auth to return our test key
-            mock_request = MagicMock()
-            mock_request.query_params = {}
-            mock_request.headers = {"x-api-key": "pk_test_integration"}
-
-            with patch('src.utils.auth._get_http_request', return_value=mock_request):
+            with patch('src.utils.auth._get_http_request', return_value=self.mock_request):
                 result = mcp_tools.pulse(ctx=None)
 
             assert result == pulse_response
             assert mock.calls.called
 
-    def test_investigate_integration_with_http_mock(self, monkeypatch, base_url, investigate_response):
+    def test_investigate_integration_with_http_mock(self, investigate_response):
         """Integration test for investigate tool."""
-        import src.utils.config as config_module
-        config_module.config = None
-
-        monkeypatch.setenv("PROF_AUTH_METHOD", "api_key")
-        monkeypatch.setenv("PROF_API_KEY", "pk_test_integration")
-        monkeypatch.setenv("PROF_API_BASE_URL", base_url)
-
-        with respx.mock(base_url=base_url) as mock:
+        with respx.mock(base_url=self.base_url) as mock:
             mock.get("/v1/mcp-investigate").mock(
                 return_value=httpx.Response(200, json=investigate_response)
             )
 
-            mock_request = MagicMock()
-            mock_request.query_params = {}
-            mock_request.headers = {"x-api-key": "pk_test_integration"}
-
-            with patch('src.utils.auth._get_http_request', return_value=mock_request):
+            with patch('src.utils.auth._get_http_request', return_value=self.mock_request):
                 result = mcp_tools.investigate("AAPL", days=30)
 
             assert result == investigate_response
             # Verify query params were passed
             assert "subject=AAPL" in str(mock.calls.last.request.url)
 
-    def test_screen_integration_with_sector_filter(self, monkeypatch, base_url, screen_response):
+    def test_screen_integration_with_sector_filter(self, screen_response):
         """Integration test for screen tool with filters."""
-        import src.utils.config as config_module
-        config_module.config = None
-
-        monkeypatch.setenv("PROF_AUTH_METHOD", "api_key")
-        monkeypatch.setenv("PROF_API_KEY", "pk_test_integration")
-        monkeypatch.setenv("PROF_API_BASE_URL", base_url)
-
-        with respx.mock(base_url=base_url) as mock:
+        with respx.mock(base_url=self.base_url) as mock:
             mock.get("/v1/mcp-screen").mock(
                 return_value=httpx.Response(200, json=screen_response)
             )
 
-            mock_request = MagicMock()
-            mock_request.query_params = {}
-            mock_request.headers = {"x-api-key": "pk_test_integration"}
-
-            with patch('src.utils.auth._get_http_request', return_value=mock_request):
+            with patch('src.utils.auth._get_http_request', return_value=self.mock_request):
                 result = mcp_tools.screen(focus="insider", sector="Technology")
 
             assert result == screen_response
@@ -522,25 +501,14 @@ class TestToolsIntegration:
             assert "focus=insider" in request_url
             assert "sector=Technology" in request_url
 
-    def test_integration_handles_http_error(self, monkeypatch, base_url):
+    def test_integration_handles_http_error(self):
         """Integration test verifies HTTP errors propagate correctly."""
-        import src.utils.config as config_module
-        config_module.config = None
-
-        monkeypatch.setenv("PROF_AUTH_METHOD", "api_key")
-        monkeypatch.setenv("PROF_API_KEY", "pk_test_integration")
-        monkeypatch.setenv("PROF_API_BASE_URL", base_url)
-
-        with respx.mock(base_url=base_url) as mock:
+        with respx.mock(base_url=self.base_url) as mock:
             mock.get("/v1/mcp-pulse").mock(
                 return_value=httpx.Response(500, json={"error": "Internal server error"})
             )
 
-            mock_request = MagicMock()
-            mock_request.query_params = {}
-            mock_request.headers = {"x-api-key": "pk_test_integration"}
-
-            with patch('src.utils.auth._get_http_request', return_value=mock_request):
+            with patch('src.utils.auth._get_http_request', return_value=self.mock_request):
                 with pytest.raises(ProfitelligenceAPIError) as exc_info:
                     mcp_tools.pulse(ctx=None)
 

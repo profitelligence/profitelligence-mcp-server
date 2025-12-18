@@ -10,83 +10,72 @@ from src.utils.auth import get_credentials_from_context, get_api_key_from_contex
 class TestGetApiKeyFromContext:
     """Test API key extraction from various sources."""
 
-    def test_extracts_api_key_from_query_params_apiKey(self, monkeypatch):
+    def test_extracts_api_key_from_query_params_apiKey(self, mock_http_request):
         """Test extraction from ?apiKey=xxx query param."""
-        mock_request = MagicMock()
-        mock_request.query_params = {"apiKey": "pk_test_from_query"}
-        mock_request.headers = {}
+        mock_request = mock_http_request(query_params={"apiKey": "pk_test_from_query"})
 
         with patch('src.utils.auth._get_http_request', return_value=mock_request):
             result = get_api_key_from_context(None)
 
         assert result == "pk_test_from_query"
 
-    def test_extracts_api_key_from_query_params_api_key(self, monkeypatch):
+    def test_extracts_api_key_from_query_params_api_key(self, mock_http_request):
         """Test extraction from ?api_key=xxx query param (snake_case)."""
-        mock_request = MagicMock()
-        mock_request.query_params = {"api_key": "pk_test_snake_case"}
-        mock_request.headers = {}
+        mock_request = mock_http_request(query_params={"api_key": "pk_test_snake_case"})
 
         with patch('src.utils.auth._get_http_request', return_value=mock_request):
             result = get_api_key_from_context(None)
 
         assert result == "pk_test_snake_case"
 
-    def test_extracts_api_key_from_x_api_key_header(self, monkeypatch):
+    def test_extracts_api_key_from_x_api_key_header(self, mock_http_request):
         """Test extraction from X-API-Key header."""
-        mock_request = MagicMock()
-        mock_request.query_params = {}
-        mock_request.headers = {"x-api-key": "pk_live_from_header"}
+        mock_request = mock_http_request(headers={"x-api-key": "pk_live_from_header"})
 
         with patch('src.utils.auth._get_http_request', return_value=mock_request):
             result = get_api_key_from_context(None)
 
         assert result == "pk_live_from_header"
 
-    def test_extracts_api_key_from_authorization_apikey(self, monkeypatch):
+    def test_extracts_api_key_from_authorization_apikey(self, mock_http_request):
         """Test extraction from Authorization: ApiKey xxx header."""
-        mock_request = MagicMock()
-        mock_request.query_params = {}
-        mock_request.headers = {"authorization": "ApiKey pk_test_auth_header"}
+        mock_request = mock_http_request(headers={"authorization": "ApiKey pk_test_auth_header"})
 
         with patch('src.utils.auth._get_http_request', return_value=mock_request):
             result = get_api_key_from_context(None)
 
         assert result == "pk_test_auth_header"
 
-    def test_extracts_api_key_from_authorization_bearer(self, monkeypatch):
+    def test_extracts_api_key_from_authorization_bearer(self, mock_http_request):
         """Test extraction from Authorization: Bearer xxx header."""
-        mock_request = MagicMock()
-        mock_request.query_params = {}
-        mock_request.headers = {"authorization": "Bearer pk_test_bearer"}
+        mock_request = mock_http_request(headers={"authorization": "Bearer pk_test_bearer"})
 
         with patch('src.utils.auth._get_http_request', return_value=mock_request):
             result = get_api_key_from_context(None)
 
         assert result == "pk_test_bearer"
 
-    def test_query_params_take_priority_over_headers(self, monkeypatch):
+    def test_query_params_take_priority_over_headers(self, mock_http_request):
         """Test that query params are checked before headers."""
-        mock_request = MagicMock()
-        mock_request.query_params = {"apiKey": "pk_test_query_wins"}
-        mock_request.headers = {"x-api-key": "pk_test_header_loses"}
+        mock_request = mock_http_request(
+            query_params={"apiKey": "pk_test_query_wins"},
+            headers={"x-api-key": "pk_test_header_loses"}
+        )
 
         with patch('src.utils.auth._get_http_request', return_value=mock_request):
             result = get_api_key_from_context(None)
 
         assert result == "pk_test_query_wins"
 
-    def test_raises_when_no_api_key_found(self, monkeypatch):
+    def test_raises_when_no_api_key_found(self, mock_http_request):
         """Test ValueError when no API key in any source."""
-        mock_request = MagicMock()
-        mock_request.query_params = {}
-        mock_request.headers = {}
+        mock_request = mock_http_request()
 
         with patch('src.utils.auth._get_http_request', return_value=mock_request):
             with pytest.raises(ValueError, match="No API key provided"):
                 get_api_key_from_context(None)
 
-    def test_raises_when_no_http_request(self, monkeypatch):
+    def test_raises_when_no_http_request(self):
         """Test ValueError when HTTP request context unavailable."""
         with patch('src.utils.auth._get_http_request', return_value=None):
             with pytest.raises(ValueError, match="No API key provided"):
@@ -96,16 +85,12 @@ class TestGetApiKeyFromContext:
 class TestGetCredentialsFromContext:
     """Test credential extraction based on auth method."""
 
-    def test_api_key_mode_returns_api_key(self, monkeypatch):
+    def test_api_key_mode_returns_api_key(self, reset_config, monkeypatch, mock_http_request):
         """Test api_key auth method returns API key credentials."""
-        import src.utils.config as config_module
-        config_module.config = None
         monkeypatch.setenv("PROF_AUTH_METHOD", "api_key")
         monkeypatch.setenv("PROF_API_KEY", "pk_test_unused")
 
-        mock_request = MagicMock()
-        mock_request.query_params = {}
-        mock_request.headers = {"x-api-key": "pk_test_extracted"}
+        mock_request = mock_http_request(headers={"x-api-key": "pk_test_extracted"})
 
         with patch('src.utils.auth._get_http_request', return_value=mock_request):
             auth_method, credential = get_credentials_from_context(None)
@@ -113,15 +98,12 @@ class TestGetCredentialsFromContext:
         assert auth_method == "api_key"
         assert credential == "pk_test_extracted"
 
-    def test_oauth_mode_extracts_bearer_token(self, monkeypatch):
+    def test_oauth_mode_extracts_bearer_token(self, reset_config, monkeypatch, mock_http_request):
         """Test oauth auth method extracts Bearer token."""
-        import src.utils.config as config_module
-        config_module.config = None
         monkeypatch.setenv("PROF_AUTH_METHOD", "oauth")
         monkeypatch.setenv("PROF_OAUTH_CLIENT_ID", "test-client")
 
-        mock_request = MagicMock()
-        mock_request.headers = {"authorization": "Bearer oauth_token_abc123"}
+        mock_request = mock_http_request(headers={"authorization": "Bearer oauth_token_abc123"})
 
         with patch('src.utils.auth._get_http_request', return_value=mock_request):
             auth_method, credential = get_credentials_from_context(None)
@@ -129,29 +111,23 @@ class TestGetCredentialsFromContext:
         assert auth_method == "oauth"
         assert credential == "oauth_token_abc123"
 
-    def test_oauth_mode_raises_without_bearer_token(self, monkeypatch):
+    def test_oauth_mode_raises_without_bearer_token(self, reset_config, monkeypatch, mock_http_request):
         """Test oauth mode raises when no Bearer token present."""
-        import src.utils.config as config_module
-        config_module.config = None
         monkeypatch.setenv("PROF_AUTH_METHOD", "oauth")
         monkeypatch.setenv("PROF_OAUTH_CLIENT_ID", "test-client")
 
-        mock_request = MagicMock()
-        mock_request.headers = {}
+        mock_request = mock_http_request()
 
         with patch('src.utils.auth._get_http_request', return_value=mock_request):
             with pytest.raises(ValueError, match="No OAuth token provided"):
                 get_credentials_from_context(None)
 
-    def test_firebase_jwt_mode_extracts_bearer_token(self, monkeypatch):
+    def test_firebase_jwt_mode_extracts_bearer_token(self, reset_config, monkeypatch, mock_http_request):
         """Test firebase_jwt mode extracts Bearer token from header."""
-        import src.utils.config as config_module
-        config_module.config = None
         monkeypatch.setenv("PROF_AUTH_METHOD", "firebase_jwt")
         monkeypatch.setenv("PROF_FIREBASE_ID_TOKEN", "config_token")
 
-        mock_request = MagicMock()
-        mock_request.headers = {"authorization": "Bearer header_firebase_token"}
+        mock_request = mock_http_request(headers={"authorization": "Bearer header_firebase_token"})
 
         with patch('src.utils.auth._get_http_request', return_value=mock_request):
             auth_method, credential = get_credentials_from_context(None)
@@ -159,15 +135,12 @@ class TestGetCredentialsFromContext:
         assert auth_method == "firebase_jwt"
         assert credential == "header_firebase_token"
 
-    def test_firebase_jwt_mode_falls_back_to_config(self, monkeypatch):
+    def test_firebase_jwt_mode_falls_back_to_config(self, reset_config, monkeypatch, mock_http_request):
         """Test firebase_jwt mode uses config token when header absent."""
-        import src.utils.config as config_module
-        config_module.config = None
         monkeypatch.setenv("PROF_AUTH_METHOD", "firebase_jwt")
         monkeypatch.setenv("PROF_FIREBASE_ID_TOKEN", "config_firebase_token")
 
-        mock_request = MagicMock()
-        mock_request.headers = {}
+        mock_request = mock_http_request()
 
         with patch('src.utils.auth._get_http_request', return_value=mock_request):
             auth_method, credential = get_credentials_from_context(None)
@@ -175,37 +148,31 @@ class TestGetCredentialsFromContext:
         assert auth_method == "firebase_jwt"
         assert credential == "config_firebase_token"
 
-    def test_firebase_jwt_mode_raises_without_token(self, monkeypatch):
+    def test_firebase_jwt_mode_raises_without_token(self, reset_config, monkeypatch, mock_http_request):
         """Test firebase_jwt mode raises when no token available."""
-        import src.utils.config as config_module
-        config_module.config = None
         monkeypatch.setenv("PROF_AUTH_METHOD", "firebase_jwt")
         monkeypatch.delenv("PROF_FIREBASE_ID_TOKEN", raising=False)
-        # Need a refresh token to pass config validation, then remove it
+        # Need a refresh token to pass config validation
         monkeypatch.setenv("PROF_FIREBASE_REFRESH_TOKEN", "temp")
 
-        # Force config reload
-        config_module.config = None
-        cfg = config_module.get_config()
-        # Clear the token after loading
+        # Force config reload and clear the token
+        cfg = reset_config.get_config()
         cfg.firebase_id_token = None
 
-        mock_request = MagicMock()
-        mock_request.headers = {}
+        mock_request = mock_http_request()
 
         with patch('src.utils.auth._get_http_request', return_value=mock_request):
             with pytest.raises(ValueError, match="No Firebase token provided"):
                 get_credentials_from_context(None)
 
-    def test_both_mode_prefers_bearer_token(self, monkeypatch):
+    def test_both_mode_prefers_bearer_token(self, reset_config, monkeypatch, mock_http_request):
         """Test 'both' mode uses OAuth when Bearer token present."""
-        import src.utils.config as config_module
-        config_module.config = None
         monkeypatch.setenv("PROF_AUTH_METHOD", "both")
 
-        mock_request = MagicMock()
-        mock_request.query_params = {"apiKey": "pk_test_api_key"}
-        mock_request.headers = {"authorization": "Bearer oauth_wins"}
+        mock_request = mock_http_request(
+            query_params={"apiKey": "pk_test_api_key"},
+            headers={"authorization": "Bearer oauth_wins"}
+        )
 
         with patch('src.utils.auth._get_http_request', return_value=mock_request):
             auth_method, credential = get_credentials_from_context(None)
@@ -213,15 +180,11 @@ class TestGetCredentialsFromContext:
         assert auth_method == "oauth"
         assert credential == "oauth_wins"
 
-    def test_both_mode_falls_back_to_api_key(self, monkeypatch):
+    def test_both_mode_falls_back_to_api_key(self, reset_config, monkeypatch, mock_http_request):
         """Test 'both' mode uses API key when no Bearer token."""
-        import src.utils.config as config_module
-        config_module.config = None
         monkeypatch.setenv("PROF_AUTH_METHOD", "both")
 
-        mock_request = MagicMock()
-        mock_request.query_params = {"apiKey": "pk_test_fallback"}
-        mock_request.headers = {}
+        mock_request = mock_http_request(query_params={"apiKey": "pk_test_fallback"})
 
         with patch('src.utils.auth._get_http_request', return_value=mock_request):
             auth_method, credential = get_credentials_from_context(None)
@@ -229,15 +192,11 @@ class TestGetCredentialsFromContext:
         assert auth_method == "api_key"
         assert credential == "pk_test_fallback"
 
-    def test_both_mode_raises_when_no_credentials(self, monkeypatch):
+    def test_both_mode_raises_when_no_credentials(self, reset_config, monkeypatch, mock_http_request):
         """Test 'both' mode raises when neither credential type present."""
-        import src.utils.config as config_module
-        config_module.config = None
         monkeypatch.setenv("PROF_AUTH_METHOD", "both")
 
-        mock_request = MagicMock()
-        mock_request.query_params = {}
-        mock_request.headers = {}
+        mock_request = mock_http_request()
 
         with patch('src.utils.auth._get_http_request', return_value=mock_request):
             with pytest.raises(ValueError, match="No credentials provided"):

@@ -92,6 +92,39 @@ def mock_config(test_api_key, base_url, monkeypatch):
     return config
 
 
+# Config reset fixture - use when tests need fresh config state
+@pytest.fixture
+def reset_config():
+    """Reset config singleton before test and provide config module.
+
+    Use this when tests need to set custom environment variables
+    and reload configuration.
+    """
+    import src.utils.config as config_module
+    config_module.config = None
+    yield config_module
+    config_module.config = None
+
+
+# Mock HTTP request factory - use for auth testing
+@pytest.fixture
+def mock_http_request():
+    """Factory fixture for creating mock HTTP requests.
+
+    Usage:
+        mock_request = mock_http_request(
+            query_params={"apiKey": "pk_test_xxx"},
+            headers={"x-api-key": "pk_live_xxx"}
+        )
+    """
+    def _create(query_params=None, headers=None):
+        mock = MagicMock()
+        mock.query_params = query_params or {}
+        mock.headers = headers or {}
+        return mock
+    return _create
+
+
 # MCP Context fixtures - useful for testing tool execution with context
 @pytest.fixture
 def mock_mcp_context():
