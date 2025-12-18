@@ -1,5 +1,9 @@
 """
 Tests for MCP tools.
+
+Tests are structured in two levels:
+1. Unit tests - Mock _get_client to verify parameter passing
+2. Integration tests - Mock at HTTP level to test full flow
 """
 import pytest
 import httpx
@@ -7,6 +11,7 @@ import respx
 from unittest.mock import patch, MagicMock
 
 from src.tools import mcp_tools
+from src.utils.api_client import ProfitelligenceAPIError
 
 
 class TestPulseTool:
@@ -338,3 +343,205 @@ class TestGetClient:
             mock_create.assert_called_once()
             # Context should be passed as second argument
             assert mock_create.call_args[0][1] == mock_ctx
+
+
+class TestToolErrorHandling:
+    """Test error handling in tools."""
+
+    def test_pulse_propagates_api_error(self, mock_config):
+        """Test pulse propagates API errors correctly."""
+        with patch.object(mcp_tools, '_get_client') as mock_get_client:
+            mock_client = MagicMock()
+            mock_client.get.side_effect = ProfitelligenceAPIError(
+                message="Server error",
+                status_code=500
+            )
+            mock_get_client.return_value = mock_client
+
+            with pytest.raises(ProfitelligenceAPIError) as exc_info:
+                mcp_tools.pulse()
+
+            assert exc_info.value.status_code == 500
+            assert "Server error" in exc_info.value.message
+
+    def test_investigate_propagates_404_error(self, mock_config):
+        """Test investigate propagates 404 when symbol not found."""
+        with patch.object(mcp_tools, '_get_client') as mock_get_client:
+            mock_client = MagicMock()
+            mock_client.get.side_effect = ProfitelligenceAPIError(
+                message="Symbol not found",
+                status_code=404
+            )
+            mock_get_client.return_value = mock_client
+
+            with pytest.raises(ProfitelligenceAPIError) as exc_info:
+                mcp_tools.investigate("INVALID")
+
+            assert exc_info.value.status_code == 404
+
+    def test_screen_propagates_auth_error(self, mock_config):
+        """Test screen propagates 401 authentication errors."""
+        with patch.object(mcp_tools, '_get_client') as mock_get_client:
+            mock_client = MagicMock()
+            mock_client.get.side_effect = ProfitelligenceAPIError(
+                message="Unauthorized - Invalid API key",
+                status_code=401
+            )
+            mock_get_client.return_value = mock_client
+
+            with pytest.raises(ProfitelligenceAPIError) as exc_info:
+                mcp_tools.screen()
+
+            assert exc_info.value.status_code == 401
+
+    def test_assess_propagates_rate_limit_error(self, mock_config):
+        """Test assess propagates 429 rate limit errors."""
+        with patch.object(mcp_tools, '_get_client') as mock_get_client:
+            mock_client = MagicMock()
+            mock_client.get.side_effect = ProfitelligenceAPIError(
+                message="Rate limit exceeded",
+                status_code=429
+            )
+            mock_get_client.return_value = mock_client
+
+            with pytest.raises(ProfitelligenceAPIError) as exc_info:
+                mcp_tools.assess("AAPL")
+
+            assert exc_info.value.status_code == 429
+
+    def test_institutional_propagates_network_error(self, mock_config):
+        """Test institutional handles network errors."""
+        with patch.object(mcp_tools, '_get_client') as mock_get_client:
+            mock_client = MagicMock()
+            mock_client.get.side_effect = ProfitelligenceAPIError(
+                message="HTTP error: Connection refused"
+            )
+            mock_get_client.return_value = mock_client
+
+            with pytest.raises(ProfitelligenceAPIError) as exc_info:
+                mcp_tools.institutional("manager", identifier="Test")
+
+            assert "Connection refused" in exc_info.value.message
+
+    def test_search_propagates_bad_request_error(self, mock_config):
+        """Test search propagates 400 bad request errors."""
+        with patch.object(mcp_tools, '_get_client') as mock_get_client:
+            mock_client = MagicMock()
+            mock_client.get.side_effect = ProfitelligenceAPIError(
+                message="Bad request - query too short",
+                status_code=400
+            )
+            mock_get_client.return_value = mock_client
+
+            with pytest.raises(ProfitelligenceAPIError) as exc_info:
+                mcp_tools.search("x")  # Too short
+
+            assert exc_info.value.status_code == 400
+
+
+class TestToolsIntegration:
+    """Integration tests that mock at HTTP level.
+
+    These tests exercise the full path including _get_client and API client.
+    """
+
+    def test_pulse_integration_with_http_mock(self, monkeypatch, base_url, pulse_response):
+        """Integration test - exercises full path through API client."""
+        import src.utils.config as config_module
+        config_module.config = None
+
+        monkeypatch.setenv("PROF_AUTH_METHOD", "api_key")
+        monkeypatch.setenv("PROF_API_KEY", "pk_test_integration")
+        monkeypatch.setenv("PROF_API_BASE_URL", base_url)
+
+        # Mock at HTTP level
+        with respx.mock(base_url=base_url) as mock:
+            mock.get("/v1/mcp-pulse").mock(
+                return_value=httpx.Response(200, json=pulse_response)
+            )
+
+            # Mock auth to return our test key
+            mock_request = MagicMock()
+            mock_request.query_params = {}
+            mock_request.headers = {"x-api-key": "pk_test_integration"}
+
+            with patch('src.utils.auth._get_http_request', return_value=mock_request):
+                result = mcp_tools.pulse(ctx=None)
+
+            assert result == pulse_response
+            assert mock.calls.called
+
+    def test_investigate_integration_with_http_mock(self, monkeypatch, base_url, investigate_response):
+        """Integration test for investigate tool."""
+        import src.utils.config as config_module
+        config_module.config = None
+
+        monkeypatch.setenv("PROF_AUTH_METHOD", "api_key")
+        monkeypatch.setenv("PROF_API_KEY", "pk_test_integration")
+        monkeypatch.setenv("PROF_API_BASE_URL", base_url)
+
+        with respx.mock(base_url=base_url) as mock:
+            mock.get("/v1/mcp-investigate").mock(
+                return_value=httpx.Response(200, json=investigate_response)
+            )
+
+            mock_request = MagicMock()
+            mock_request.query_params = {}
+            mock_request.headers = {"x-api-key": "pk_test_integration"}
+
+            with patch('src.utils.auth._get_http_request', return_value=mock_request):
+                result = mcp_tools.investigate("AAPL", days=30)
+
+            assert result == investigate_response
+            # Verify query params were passed
+            assert "subject=AAPL" in str(mock.calls.last.request.url)
+
+    def test_screen_integration_with_sector_filter(self, monkeypatch, base_url, screen_response):
+        """Integration test for screen tool with filters."""
+        import src.utils.config as config_module
+        config_module.config = None
+
+        monkeypatch.setenv("PROF_AUTH_METHOD", "api_key")
+        monkeypatch.setenv("PROF_API_KEY", "pk_test_integration")
+        monkeypatch.setenv("PROF_API_BASE_URL", base_url)
+
+        with respx.mock(base_url=base_url) as mock:
+            mock.get("/v1/mcp-screen").mock(
+                return_value=httpx.Response(200, json=screen_response)
+            )
+
+            mock_request = MagicMock()
+            mock_request.query_params = {}
+            mock_request.headers = {"x-api-key": "pk_test_integration"}
+
+            with patch('src.utils.auth._get_http_request', return_value=mock_request):
+                result = mcp_tools.screen(focus="insider", sector="Technology")
+
+            assert result == screen_response
+            request_url = str(mock.calls.last.request.url)
+            assert "focus=insider" in request_url
+            assert "sector=Technology" in request_url
+
+    def test_integration_handles_http_error(self, monkeypatch, base_url):
+        """Integration test verifies HTTP errors propagate correctly."""
+        import src.utils.config as config_module
+        config_module.config = None
+
+        monkeypatch.setenv("PROF_AUTH_METHOD", "api_key")
+        monkeypatch.setenv("PROF_API_KEY", "pk_test_integration")
+        monkeypatch.setenv("PROF_API_BASE_URL", base_url)
+
+        with respx.mock(base_url=base_url) as mock:
+            mock.get("/v1/mcp-pulse").mock(
+                return_value=httpx.Response(500, json={"error": "Internal server error"})
+            )
+
+            mock_request = MagicMock()
+            mock_request.query_params = {}
+            mock_request.headers = {"x-api-key": "pk_test_integration"}
+
+            with patch('src.utils.auth._get_http_request', return_value=mock_request):
+                with pytest.raises(ProfitelligenceAPIError) as exc_info:
+                    mcp_tools.pulse(ctx=None)
+
+            assert exc_info.value.status_code == 500

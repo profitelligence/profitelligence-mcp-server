@@ -282,3 +282,119 @@ class TestProfitelligenceAPIError:
         assert error.message == "Minimal error"
         assert error.status_code is None
         assert error.response_body is None
+
+
+class TestCreateClientFromConfig:
+    """Test create_client_from_config factory function."""
+
+    def test_creates_client_for_api_key_mode(self, monkeypatch):
+        """Test factory creates client in api_key mode."""
+        from src.utils.api_client import create_client_from_config
+        import src.utils.config as config_module
+        config_module.config = None
+
+        monkeypatch.setenv("PROF_AUTH_METHOD", "api_key")
+        monkeypatch.setenv("PROF_API_KEY", "pk_test_unused")
+        monkeypatch.setenv("PROF_API_BASE_URL", "https://test-api.example.com")
+
+        cfg = config_module.get_config()
+
+        # Mock the auth module to return a test API key
+        mock_request = MagicMock()
+        mock_request.query_params = {}
+        mock_request.headers = {"x-api-key": "pk_test_from_context"}
+
+        with patch('src.utils.auth._get_http_request', return_value=mock_request):
+            client = create_client_from_config(cfg, ctx=None)
+
+        assert isinstance(client, APIClient)
+        assert client.auth_method == "api_key"
+        assert client.api_key == "pk_test_from_context"
+        assert client.base_url == "https://test-api.example.com"
+        client.close()
+
+    def test_creates_client_for_oauth_mode(self, monkeypatch):
+        """Test factory creates client in oauth mode (converts to firebase_jwt for backend)."""
+        from src.utils.api_client import create_client_from_config
+        import src.utils.config as config_module
+        config_module.config = None
+
+        monkeypatch.setenv("PROF_AUTH_METHOD", "oauth")
+        monkeypatch.setenv("PROF_OAUTH_CLIENT_ID", "test-client-id")
+        monkeypatch.setenv("PROF_API_BASE_URL", "https://test-api.example.com")
+
+        cfg = config_module.get_config()
+
+        # Mock the auth module to return an OAuth token
+        mock_request = MagicMock()
+        mock_request.headers = {"authorization": "Bearer firebase_id_token_from_oauth"}
+
+        with patch('src.utils.auth._get_http_request', return_value=mock_request):
+            client = create_client_from_config(cfg, ctx=None)
+
+        assert isinstance(client, APIClient)
+        # OAuth tokens are converted to firebase_jwt for backend API
+        assert client.auth_method == "firebase_jwt"
+        assert client.firebase_token == "firebase_id_token_from_oauth"
+        client.close()
+
+    def test_creates_client_for_firebase_jwt_mode(self, monkeypatch):
+        """Test factory creates client in firebase_jwt mode."""
+        from src.utils.api_client import create_client_from_config
+        import src.utils.config as config_module
+        config_module.config = None
+
+        monkeypatch.setenv("PROF_AUTH_METHOD", "firebase_jwt")
+        monkeypatch.setenv("PROF_FIREBASE_ID_TOKEN", "config_firebase_token")
+        monkeypatch.setenv("PROF_API_BASE_URL", "https://test-api.example.com")
+
+        cfg = config_module.get_config()
+
+        # No HTTP request - should use config token
+        with patch('src.utils.auth._get_http_request', return_value=None):
+            client = create_client_from_config(cfg, ctx=None)
+
+        assert isinstance(client, APIClient)
+        assert client.auth_method == "firebase_jwt"
+        assert client.firebase_token == "config_firebase_token"
+        client.close()
+
+    def test_raises_when_oauth_mode_missing_token(self, monkeypatch):
+        """Test factory raises when oauth mode has no Bearer token."""
+        from src.utils.api_client import create_client_from_config
+        import src.utils.config as config_module
+        config_module.config = None
+
+        monkeypatch.setenv("PROF_AUTH_METHOD", "oauth")
+        monkeypatch.setenv("PROF_OAUTH_CLIENT_ID", "test-client-id")
+
+        cfg = config_module.get_config()
+
+        # No Bearer token in request
+        mock_request = MagicMock()
+        mock_request.headers = {}
+
+        with patch('src.utils.auth._get_http_request', return_value=mock_request):
+            with pytest.raises(ValueError, match="No OAuth token provided"):
+                create_client_from_config(cfg, ctx=None)
+
+    def test_raises_when_firebase_jwt_mode_missing_token(self, monkeypatch):
+        """Test factory raises when firebase_jwt mode has no token."""
+        from src.utils.api_client import create_client_from_config
+        import src.utils.config as config_module
+        config_module.config = None
+
+        monkeypatch.setenv("PROF_AUTH_METHOD", "firebase_jwt")
+        # Use refresh token to pass validation, but no ID token
+        monkeypatch.setenv("PROF_FIREBASE_REFRESH_TOKEN", "temp_refresh")
+        monkeypatch.delenv("PROF_FIREBASE_ID_TOKEN", raising=False)
+
+        cfg = config_module.get_config()
+        cfg.firebase_id_token = None  # Clear after loading
+
+        mock_request = MagicMock()
+        mock_request.headers = {}
+
+        with patch('src.utils.auth._get_http_request', return_value=mock_request):
+            with pytest.raises(ValueError, match="Firebase ID token not configured"):
+                create_client_from_config(cfg, ctx=None)

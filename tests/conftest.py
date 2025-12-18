@@ -1,11 +1,18 @@
 """
 Pytest configuration and fixtures for Profitelligence MCP Server tests.
+
+Fixtures are organized into categories:
+- Environment setup (autouse)
+- Authentication credentials (test_api_key, test_firebase_token, etc.)
+- API client instances
+- MCP context mocks
+- Sample API responses
+- HTTP mocking helpers
 """
-import os
 import pytest
 import httpx
 import respx
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 
 # Set test environment variables before importing config
@@ -85,9 +92,14 @@ def mock_config(test_api_key, base_url, monkeypatch):
     return config
 
 
+# MCP Context fixtures - useful for testing tool execution with context
 @pytest.fixture
 def mock_mcp_context():
-    """Create a mock FastMCP context for tool testing."""
+    """Create a mock FastMCP context for tool testing.
+
+    Use this when testing tools that need a context object but don't
+    need specific credentials in the context.
+    """
     ctx = MagicMock()
     ctx.request_context = MagicMock()
     ctx.request_context.lifespan_context = {}
@@ -96,7 +108,11 @@ def mock_mcp_context():
 
 @pytest.fixture
 def mock_mcp_context_with_api_key(test_api_key):
-    """Create a mock FastMCP context with API key in headers."""
+    """Create a mock FastMCP context with API key in headers.
+
+    Use this when testing the full auth flow through MCP context.
+    The API key is placed in the x-api-key header.
+    """
     ctx = MagicMock()
     ctx.request_context = MagicMock()
     ctx.request_context.lifespan_context = {}
