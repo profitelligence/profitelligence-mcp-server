@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "profitelligence": {
+      "type": "http",
+      "url": "https://mcp.profitelligence.com/mcp"
+    }
+  }
+}
