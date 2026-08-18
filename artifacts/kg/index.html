@@ -1,0 +1,364 @@
+<title>Profitelligence Knowledge Graph 1.1</title>
+<style>
+  /* Ledger design system — mirrors profitelligence-brand/shared/brand-tokens.css.
+     Deep navy ink, warm paper, brass accent; clay reserved for hazard semantics. */
+  :root {
+    --ink: #0C1626; --ink-2: #13223A; --ink-3: #1D3050;
+    --paper: #FBFAF8; --paper-2: #F3F0EA; --edge: #E2DED5;
+    --brass: #228B22; --brass-bright: #3FC778; --clay: #A4442F; --slate: #7C8AA0;
+    --font-display: 'Newsreader', Georgia, 'Times New Roman', serif;
+    --font-sans: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --font-mono: 'IBM Plex Mono', 'SF Mono', Monaco, 'Cascadia Code', monospace;
+
+    --ground: var(--paper); --text: #0C1626; --muted: #54565A;
+    --faint: #A2A096; --card: #FFFFFF; --line: var(--edge);
+    --accent: var(--brass); --hazard: var(--clay); --code-bg: var(--paper-2);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ground: var(--ink); --text: #F1EFEA; --muted: #97A3B6;
+      --faint: #7C8AA0; --card: var(--ink-2); --line: var(--ink-3);
+      --accent: var(--brass-bright); --hazard: #C4664E; --code-bg: var(--ink-3);
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground: var(--ink); --text: #F1EFEA; --muted: #97A3B6;
+    --faint: #7C8AA0; --card: var(--ink-2); --line: var(--ink-3);
+    --accent: var(--brass-bright); --hazard: #C4664E; --code-bg: var(--ink-3);
+  }
+  :root[data-theme="light"] {
+    --ground: var(--paper); --text: #0C1626; --muted: #54565A;
+    --faint: #A2A096; --card: #FFFFFF; --line: var(--edge);
+    --accent: var(--brass); --hazard: var(--clay); --code-bg: var(--paper-2);
+  }
+  * { box-sizing: border-box; }
+  body {
+    background: var(--ground); color: var(--text);
+    font-family: var(--font-sans); font-weight: 400;
+    line-height: 1.65; margin: 0; padding: 0 1.25rem 6rem;
+  }
+  main { max-width: 920px; margin: 0 auto; }
+  header { padding: 4rem 0 1.5rem; border-bottom: 2px solid var(--text); }
+  .kicker {
+    font-family: var(--font-sans); font-size: .72rem; font-weight: 500;
+    letter-spacing: .18em; text-transform: uppercase; color: var(--slate);
+    margin: 0 0 1rem;
+  }
+  h1 {
+    font-family: var(--font-display); font-weight: 500;
+    font-size: clamp(1.9rem, 4.5vw, 2.9rem); line-height: 1.12;
+    margin: 0 0 .75rem; text-wrap: balance;
+  }
+  .lede { color: var(--muted); max-width: 64ch; margin: .25rem 0 1.75rem; font-size: 1.02rem; }
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: .75rem; }
+  .tile {
+    background: var(--card); border: 1px solid var(--line);
+    border-top: 2px solid var(--accent); border-radius: 3px; padding: .8rem .9rem;
+  }
+  .tile b {
+    display: block; font-family: var(--font-mono); font-weight: 500;
+    font-size: 1.5rem; font-variant-numeric: tabular-nums;
+  }
+  .tile span { font-size: .78rem; color: var(--muted); }
+  section { margin-top: 3.5rem; }
+  h2 {
+    font-family: var(--font-sans); font-weight: 600; font-size: 1.15rem;
+    letter-spacing: .01em; margin: 0 0 .3rem;
+    padding-bottom: .4rem; border-bottom: 1px solid var(--line);
+  }
+  .sub { color: var(--muted); font-size: .93rem; max-width: 70ch; margin: .6rem 0 1.1rem; }
+  .plate {
+    background: var(--card); border: 1px solid var(--line); border-radius: 4px;
+    padding: 1rem; overflow-x: auto;
+  }
+  .plate + .caption { font-size: .8rem; color: var(--muted); margin: .55rem 0 0; }
+  pre.mermaid { margin: 0; min-width: 640px; }
+  .badge {
+    font-family: var(--font-mono); display: inline-block; font-size: .68rem;
+    letter-spacing: .08em; padding: .12rem .5rem; border: 1px solid currentColor;
+    border-radius: 9999px; vertical-align: 2px; margin-left: .6rem; font-weight: 500;
+  }
+  .live { color: var(--accent); } .hz { color: var(--hazard); }
+  table { border-collapse: collapse; width: 100%; font-size: .86rem; }
+  .tablewrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 3px; }
+  th {
+    text-align: left; font-family: var(--font-sans); font-weight: 500;
+    font-size: .7rem; letter-spacing: .14em; text-transform: uppercase;
+    color: var(--slate); padding: .55rem .75rem; border-bottom: 1px solid var(--line);
+    background: var(--code-bg);
+  }
+  td { padding: .55rem .75rem; border-bottom: 1px solid var(--line); vertical-align: top; }
+  tr:last-child td { border-bottom: none; }
+  td code, p code, .caption code {
+    font-family: var(--font-mono); background: var(--code-bg);
+    padding: .05rem .35rem; border-radius: 2px; font-size: .82em; white-space: nowrap;
+  }
+  .fam { font-family: var(--font-mono); font-size: .78rem; line-height: 2; }
+  .legend { font-family: var(--font-mono); font-size: .74rem; color: var(--faint); line-height: 1.9; }
+  a { color: var(--accent); }
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+</style>
+
+<main>
+<header>
+  <p class="kicker">Profitelligence · Knowledge Graph 1.1</p>
+  <h1>A living map of the market.</h1>
+  <p class="lede">Profitelligence turns SEC filings — insider trades, fund holdings, corporate events,
+  financials — into a graph an AI agent can walk: ask about a company, hop to its insiders,
+  its biggest holders, what those funds also own, what it earned last quarter.
+  This page shows how it's built. One rule underneath everything:
+  <strong>the graph never stores a copy of the data</strong>, so its answers can't go stale.</p>
+  <div class="tiles">
+    <div class="tile"><b>193</b><span>schema assertions — the map, never the market data</span></div>
+    <div class="tile"><b>41</b><span>traversals live in production</span></div>
+    <div class="tile"><b>0</b><span>copies of the data kept in the graph</span></div>
+    <div class="tile"><b>72</b><span>source tables mapped, with their traps</span></div>
+    <div class="tile"><b>3</b><span>API endpoints, live in production</span></div>
+  </div>
+</header>
+
+<section>
+  <h2>System architecture<span class="badge live">PROD LIVE</span></h2>
+  <p class="sub">An AI agent connects once, signs in once, and gets a set of tools. Every request
+  passes through two checkpoints — who you are, and what your plan allows — before it
+  touches any data. The graph service then answers straight from the lakehouse,
+  read-only by construction.</p>
+  <div class="plate"><pre class="mermaid">
+flowchart LR
+  subgraph AGENT["your side"]
+    CL["AI agent — Claude, GPT, ..."]
+  end
+  subgraph AC["Profitelligence MCP server"]
+    GW["Gateway — verifies your login"]
+    RT["Runtime — 8 tools, incl. graph"]
+  end
+  subgraph AP["Profitelligence API"]
+    AGWY["API Gateway — auth + plan checks"]
+    MD["Graph service — read-only query engine"]
+  end
+  subgraph DE["data platform"]
+    LH[("The lakehouse — SEC filings at scale")]
+    RDS[("Accounts &amp; entitlements")]
+  end
+  CL -- "signed in" --> GW --> RT
+  RT -- "one graph question" --> AGWY --> MD
+  MD -- "scans, pushed down" --> LH
+  AGWY -. "plan checks" .-> RDS
+  </pre></div>
+  <p class="caption">The graph service reads the lakehouse itself — the same store the whole platform is
+  built on. Agents only ever talk to the front door.</p>
+</section>
+
+<section>
+  <h2>The virtualized pattern (OBDA)<span class="badge live">THE CORE IDEA</span></h2>
+  <p class="sub"><code>company:NVDA</code> is just an address — there's no stored record behind it.
+  When an agent asks a question about it, a saved query runs right then against the real
+  tables. No sync job, nothing goes stale — the answer is as fresh as the data itself.</p>
+  <div class="plate"><pre class="mermaid">
+sequenceDiagram
+  autonumber
+  participant A as agent
+  participant G as graph tool (MCP)
+  participant K as /v1/kg-traverse
+  participant B as edge binding
+  participant T as lakehouse table
+  A->>G: traverse company:NVDA INSTITUTIONAL_HOLDERS
+  G->>K: GET from=company:NVDA (Bearer JWT)
+  K->>K: auth, tier, symbol-access checks
+  K->>B: parse anchor, normalize slug NVDA
+  B->>T: scan the lakehouse for that ticker (pushed down, inputs bound)
+  T-->>B: 25 rows, 2026Q2
+  B-->>K: turn rows into graph edges, tagged as live
+  K-->>A: BlackRock $335.8B ... each answer citing its source
+  Note over A,T: Nothing was written. Nothing is stored. Re-ask tomorrow, get tomorrow's truth.
+  </pre></div>
+  <p class="caption">Every answer says where it came from and which rule shaped it — you can trace any
+  number back to the filing it started as.</p>
+</section>
+
+<section>
+  <h2>The ontology, at altitude</h2>
+  <p class="sub">The graph knows about a dozen kinds of things — companies, funds, insiders, filings,
+  fiscal periods, events, prices — tied together by a handful of official ID systems.
+  The circles below are the IDs; notice <code>cik</code>, which the SEC hands to companies,
+  insiders, <em>and</em> funds alike. Knowing which is which is half the job.</p>
+  <div class="plate"><pre class="mermaid">
+flowchart LR
+  sym(("symbol"))
+  cik(("cik"))
+  cusip(("cusip"))
+  acc(("accession #"))
+  CO["Company"]
+  SEC["Security"]
+  INS["Insider"]
+  MGR["Fund Manager"]
+  FIL["SEC Filing"]
+  HLD["13F Holding"]
+  CLU["Insider Cluster"]
+  TXN["Form 4 Transaction"]
+  PER["Fiscal Period"]
+  EVT["Market Event"]
+  PRC["Price History"]
+  CO -- "trades as" --- sym
+  SEC -- "resolves to" --- sym
+  PRC -- "keyed by" --- sym
+  CO -- "files under" --- cik
+  INS -- "reports under" --- cik
+  MGR -- "files under" --- cik
+  SEC -- "identified by" --- cusip
+  HLD -- "names a" --- cusip
+  FIL -- "stamped with" --- acc
+  HLD -- "reported in" --- FIL
+  CLU -- "groups" --- INS
+  INS -- "files" --- TXN
+  CO -- "reports for" --- PER
+  CO -- "lands on" --- EVT
+  </pre></div>
+  <p class="caption">An agent can ask the graph to describe itself — every kind of thing, every ID, every
+  known trap — before asking a single question about the market.</p>
+</section>
+
+<section>
+  <h2>The edge-type map<span class="badge live">41 TRAVERSALS</span></h2>
+  <p class="sub">Start from any anchor, follow any arrow. "Who started buying NVDA last quarter?"
+  "What did this fund dump?" "What has this insider actually filed, and did they sell above
+  the day's close?" Every arrow is a question the graph answers in one hop.</p>
+  <div class="plate"><pre class="mermaid">
+flowchart LR
+  C(("company:SYM"))
+  M(("manager:CIK"))
+  I(("insider:CIK"))
+  K(("cluster:ID"))
+  S(("sector / industry"))
+  F["filing"]
+  P["fiscal period"]
+  E["event / signal"]
+  X["transaction"]
+  C -- "ownership — who holds, who has conviction" --> M
+  M -- "portfolio — holdings, conviction, co-investment" --> C
+  C -- "position changes — accumulated / distributed by" --> M
+  M -- "position changes — initiated / increased / reduced / exited" --> C
+  C -- "insiders — activity, roles, confidence" --> I
+  I -- "affiliation, transactions, peers" --> C
+  I -- "TRANSACTION_HISTORY — every filing, full history" --> X
+  C -- "clusters" --> K
+  K -- "cluster members" --> I
+  C -- "filings, 8-K events, forward returns" --> F
+  C -- "REPORTED_FINANCIALS / BALANCE_SHEET / CASH_FLOW" --> P
+  C -- "timeline, technical + crowding signals" --> E
+  C -- "PRICE_REACTION — insider trades vs that day's price" --> I
+  C -- "taxonomy, sector benchmark" --> S
+  </pre></div>
+  <p class="caption">Grouped by family for legibility — each label above stands for one or more named
+  traversals. The full list, with anchor kinds and known traps, is what
+  <code>graph("schema")</code> returns.</p>
+</section>
+
+<section>
+  <h2>What you can ask, by family</h2>
+  <p class="sub">All 41, grouped. Every one resolves live against the lakehouse at the moment
+  it's asked.</p>
+  <div class="tablewrap"><table>
+    <thead><tr><th>family</th><th>traversals</th></tr></thead>
+    <tbody>
+      <tr><td>Ownership</td><td class="fam">INSTITUTIONAL_HOLDERS · PORTFOLIO_HOLDINGS · HAS_CONVICTION_IN · IS_CONVICTION_HOLDING_OF · CO_INVESTED_WITH · CO_HELD_WITH</td></tr>
+      <tr><td>Position changes</td><td class="fam">INITIATED_POSITION · INCREASED_POSITION · REDUCED_POSITION · EXITED_POSITION · ACCUMULATED_BY · DISTRIBUTED_BY · CROWDING_SIGNAL · NEW_POSITION_INTEREST · MANAGER_ACTIVITY</td></tr>
+      <tr><td>Insiders</td><td class="fam">INSIDER_ACTIVITY · HAS_INSIDER · AFFILIATED_WITH · TRANSACTED · TRANSACTION_HISTORY · CO_INSIDER_WITH · INTERLOCKED_WITH · IN_CLUSTER · CLUSTER_INSIDERS · INSIDER_CONFIDENCE · PRICE_REACTION</td></tr>
+      <tr><td>Filings &amp; events</td><td class="fam">FILED_8K · FILED_EVENT · REACTED · EVENT_TIMELINE</td></tr>
+      <tr><td>Financials</td><td class="fam">REPORTED_FINANCIALS · REPORTED_BALANCE_SHEET · REPORTED_CASH_FLOW</td></tr>
+      <tr><td>Market state</td><td class="fam">TECHNICAL_SIGNAL · BENCHMARKED_AGAINST · DISCOVERY_SIGNAL</td></tr>
+      <tr><td>Taxonomy</td><td class="fam">IN_SECTOR · IN_INDUSTRY · SECTOR_COMPANY · SECTOR_INDUSTRIES · INDUSTRY_COMPANY</td></tr>
+    </tbody>
+  </table></div>
+  <p class="caption">Filings carry their SEC 8-K item codes, and the graph holds a taxonomy for them —
+  so <code>5.02</code> reads as "officer departure" and <code>1.05</code> as "material
+  cybersecurity incident" rather than as a number.</p>
+</section>
+
+<section>
+  <h2>Infra &amp; deploy pipeline</h2>
+  <p class="sub">From code review to production, one path. Every service is built once and promoted
+  unchanged — staging and production run the exact same bytes — and the permissions it
+  runs with are declared in code, not clicked together.</p>
+  <div class="plate"><pre class="mermaid">
+flowchart LR
+  CR["Code review — every change"] --> B1["Build — one container per service"]
+  B1 --> REG[("Private registry")]
+  REG -- "same bytes" --> ST["Staging"]
+  REG -- "same bytes" --> PRD["Production"]
+  IAC["Infrastructure as code — auth, routes, permissions"] --> PRD
+  </pre></div>
+  <p class="caption">Everything ships from code review to production through the same pipeline, and the
+  graph service can never hold write access to the database — that's enforced at deploy.</p>
+</section>
+
+<section>
+  <h2>Upkeep — what keeps it fresh</h2>
+  <p class="sub">The graph itself needs no maintenance — that's the payoff of not storing data.
+  Its answers are as fresh as the pipelines that fill the tables it reads.</p>
+  <div class="plate"><pre class="mermaid">
+flowchart TB
+  subgraph SRC2["Profitelligence sources"]
+    A1["SEC filings, as they land"]
+    A2["Market prices"]
+    A3["Macro indicators"]
+  end
+  subgraph PIPE["the Profitelligence refinery"]
+    P1["Capture — every filing, versioned"]
+    P2["Distill — amendments reconciled, entities resolved"]
+    P3["Classify — intent, impact, clusters"]
+  end
+  subgraph STORE["what the graph reads"]
+    RAW[("Raw archive — years of filings")]
+    REF[("Refined layer — question-ready")]
+  end
+  A1 --> P1 --> RAW
+  RAW --> P2 --> P3 --> REF
+  A2 --> REF
+  A3 --> REF
+  REF == "the graph reads from here" ==> API2["your answers"]
+  </pre></div>
+  <p class="caption">How often things update: corporate events land near real-time, insider trades within
+  days, fund holdings on the SEC's quarterly cycle (funds get 45 days to file — a fact the
+  graph explains rather than hides), and the refined layer refreshes daily.</p>
+</section>
+
+<section>
+  <h2>The hazard registry<span class="badge hz">ENCODED IN THE GRAPH</span></h2>
+  <p class="sub">The gotchas of SEC data that normally live in an analyst's head, written into the
+  graph itself — so the model reads the warning <em>before</em> it makes the mistake.
+  Every traversal that touches one of these returns the warning alongside the numbers.</p>
+  <div class="tablewrap"><table>
+    <thead><tr><th>hazard</th><th>where it bites</th><th>the rule the graph carries</th></tr></thead>
+    <tbody>
+      <tr><td>One ID, three kinds of filers</td><td>identity resolution</td>
+          <td>The SEC hands the same style of ID to companies, insiders, and funds. The graph always knows which kind it's holding.</td></tr>
+      <tr><td>Amendments double-count</td><td>any holdings math</td>
+          <td>Funds re-file corrections; sum na&iuml;vely and GE once read 214% of its own shares outstanding. The graph counts each position exactly once.</td></tr>
+      <tr><td>"Acquired" isn't "bought"</td><td>"insiders are buying"</td>
+          <td>Most acquired shares are grants and option exercises — only ~14% are real open-market buys. The graph keeps the intent code on every transaction so purchases stay separable from paperwork.</td></tr>
+      <tr><td>Big firms file as many entities</td><td>holder rankings, and any quarter-over-quarter change</td>
+          <td>One household name can be several legal filers. Ownership traversals emit a family token so they can be summed into one firm. On <em>changes</em>, a filer reorganization looks like enormous trading — a fund can appear to exit a position entirely while its sibling entities post it as new. The graph flags this on every change traversal rather than silently averaging it away.</td></tr>
+      <tr><td>Quarter labels are filing windows</td><td>time reasoning</td>
+          <td>A "Q2" holdings filing describes the portfolio as of the end of March. The graph never mistakes filing time for market time.</td></tr>
+      <tr><td>Tickers drift</td><td>joining anything to price</td>
+          <td>Tickers get reused, shared, and listed several at a time. The graph resolves identity through official IDs, not the ticker string.</td></tr>
+      <tr><td>Accounting tags drift between periods</td><td>comparing financials year over year</td>
+          <td>The same line item can be filed under a narrower accounting concept in one period than another — an annual figure tagged as only the domestic or foreign share of the total. The graph returns the concept behind every number so the mismatch is visible, not inferred.</td></tr>
+      <tr><td>Per-share figures aren't restated for splits</td><td>any earnings-per-share trend</td>
+          <td>Filings report what was true at the time. Across a 10-for-1 split, unadjusted earnings per share falls from $5.98 to $0.76 — a collapse that never happened. The graph marks these fields as as-reported and points at the split record.</td></tr>
+      <tr><td>Cash-flow signs follow the filing, not the label</td><td>buybacks, acquisitions, capital returns</td>
+          <td>A field named for share issuance can hold share <em>repurchases</em>, positive. The graph returns the underlying accounting tag beside the value, so direction is read from the source rather than the column name.</td></tr>
+      <tr><td>Gifts and grants have no price</td><td>"did the insider sell high?"</td>
+          <td>A gifted or granted share has no execution price, so any comparison against that day's market price produces nonsense. The graph withholds the price comparison for those transactions instead of reporting a −100% discount.</td></tr>
+    </tbody>
+  </table></div>
+  <p class="caption">The bottom four were found by building traversals over data that had never been walked
+  end to end. Making the graph answer questions is also how it audits itself.</p>
+</section>
+
+<section>
+  <p class="legend">profitelligence · knowledge graph module · live now in the <code>graph</code> tool ·
+  research data, not financial advice</p>
+</section>
+</main>

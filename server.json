@@ -1,0 +1,17 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.profitelligence/mcp-server",
+  "description": "Financial intelligence: insider trades, SEC filings, 13F holdings, and market signals.",
+  "version": "2.2.2",
+  "websiteUrl": "https://profitelligence.com",
+  "repository": {
+    "url": "https://github.com/profitelligence/profitelligence-mcp-server",
+    "source": "github"
+  },
+  "remotes": [
+    {
+      "type": "streamable-http",
+      "url": "https://mcp.profitelligence.com/mcp"
+    }
+  ]
+}
